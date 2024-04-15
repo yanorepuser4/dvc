@@ -24,14 +24,21 @@ dvcyaml = {
     }
 }
 
+dvcyaml_parametrized = deepcopy(dvcyaml)
+dvcyaml_parametrized["artifacts"]["world"]["path"] = "${world_path}"
+
+paramsyaml = {"world_path": "world.txt"}
+
 
 def test_artifacts_read_subdir(tmp_dir, dvc):
-    (tmp_dir / "dvc.yaml").dump(dvcyaml)
+    (tmp_dir / "dvc.yaml").dump(dvcyaml_parametrized)
+    (tmp_dir / "params.yaml").dump(paramsyaml)
 
     subdir = tmp_dir / "subdir"
     subdir.mkdir()
 
-    (subdir / "dvc.yaml").dump(dvcyaml)
+    (subdir / "dvc.yaml").dump(dvcyaml_parametrized)
+    (subdir / "params.yaml").dump(paramsyaml)
 
     artifacts = {
         name: Artifact(**values) for name, values in dvcyaml["artifacts"].items()
@@ -187,10 +194,12 @@ def test_get_rev(tmp_dir, dvc, scm):
 
 
 def test_get_path(tmp_dir, dvc):
-    (tmp_dir / "dvc.yaml").dump(dvcyaml)
+    (tmp_dir / "dvc.yaml").dump(dvcyaml_parametrized)
+    (tmp_dir / "params.yaml").dump(paramsyaml)
     subdir = tmp_dir / "subdir"
     subdir.mkdir()
-    (subdir / "dvc.yaml").dump(dvcyaml)
+    (subdir / "dvc.yaml").dump(dvcyaml_parametrized)
+    (subdir / "params.yaml").dump(paramsyaml)
 
     assert dvc.artifacts.get_path("myart") == "myart.pkl"
     assert dvc.artifacts.get_path("subdir:myart") == os.path.join("subdir", "myart.pkl")
@@ -209,14 +218,19 @@ def test_parametrized(tmp_dir, dvc):
     }
 
 
-def test_artifacts_read_on_dvc_subrepo(tmp_dir, dvc):
+def test_artifacts_read_on_dvc_subrepo(tmp_dir, scm):
     subdir = tmp_dir / "subdir"
     (subdir / ".dvc").mkdir(parents=True)
-    (subdir / "dvc.yaml").dump(dvcyaml)
+    (subdir / "dvc.yaml").dump(dvcyaml_parametrized)
+    (subdir / "params.yaml").dump(paramsyaml)
 
     artifacts = {
         name: Artifact(**values) for name, values in dvcyaml["artifacts"].items()
     }
-    assert Repo(subrepos=True).artifacts.read() == {
+    assert Repo(subrepos=True, uninitialized=True).artifacts.read() == {
         f"subdir{os.path.sep}dvc.yaml": artifacts,
+    }
+
+    assert Repo(subdir).artifacts.read() == {
+        "dvc.yaml": artifacts,
     }
