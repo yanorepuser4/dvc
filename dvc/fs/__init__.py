@@ -72,7 +72,14 @@ def download(
             lfs_prefetch(fs, from_infos)
         cb.set_size(len(from_infos))
         jobs = jobs or fs.jobs
-        generic.copy(fs, from_infos, localfs, to_infos, callback=cb, batch_size=jobs)
+        try:
+            links = fs._config["config"]["cache"]["type"]
+        except KeyError:
+            links = []
+        links = list({*links, "copy"})
+        generic.transfer(
+            fs, from_infos, localfs, to_infos, links=links, callback=cb, batch_size=jobs
+        )
         return len(to_infos)
 
 
